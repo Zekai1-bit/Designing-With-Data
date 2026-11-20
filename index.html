@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tremor — the planet, right now</title>
+<meta name="description" content="Live earthquakes from the USGS real-time feed. Every quake is a ripple on a dark world map, and the colour, motion, text and sound of the page change with how restless the planet is.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
+<script src="script.js" defer></script>
+</head>
+<body>
+
+<header class="site-header">
+  <!-- Photo credit: Spiske, M. (2019, March 10). Cracked earth texture with dark tones [Photograph]. Pexels.
+       https://www.pexels.com/photo/dirty-dry-pattern-texture-2004166/ -->
+  <figure class="hero">
+    <img id="heroPhoto" src="images/cracked-earth.jpg" width="1920" height="1280" alt="">
+    <figcaption>Photo: Spiske (2019), Pexels</figcaption>
+  </figure>
+
+  <div class="header-inner">
+    <div class="header-row">
+      <p class="eyebrow">CCT360 · Designing With Data</p>
+      <nav aria-label="Site">
+        <a class="nav-link" href="references.html">References</a>
+      </nav>
+    </div>
+    <h1>Tremor</h1>
+    <p class="tagline">The planet, right now</p>
+    <p id="headline" class="headline" aria-live="polite">Listening for earthquakes…</p>
+  </div>
+
+  <svg class="seismograph" viewBox="0 0 600 48" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+    <g class="seismo-scale">
+      <path id="seismoPath" class="seismo-path" d="M0 0 H1200"></path>
+    </g>
+  </svg>
+</header>
+
+<main>
+
+  <noscript>
+    <section class="panel notice" aria-label="JavaScript required">
+      <h2>JavaScript is turned off</h2>
+      <p>This page fetches live earthquakes from the USGS feed and redraws itself with JavaScript.
+        Turn JavaScript on in your browser settings and reload to see what the planet is doing right now.</p>
+    </section>
+  </noscript>
+
+  <section id="errorCard" class="panel notice is-hidden" role="alert" aria-labelledby="errorTitle">
+    <h2 id="errorTitle">The earthquake feed did not load</h2>
+    <p id="errorMessage"></p>
+    <button id="retryBtn" class="button" type="button">Retry</button>
+  </section>
+
+  <div class="layout">
+
+    <section class="map-panel" aria-labelledby="mapTitle">
+      <h2 id="mapTitle" class="visually-hidden">Map of recent earthquakes</h2>
+      <div id="mapFrame" class="map-frame">
+        <svg id="map" class="map" viewBox="0 0 360 180" role="group" aria-labelledby="mapTitle">
+          <rect class="map-ocean" width="360" height="180"></rect>
+          <g id="graticule" class="graticule" aria-hidden="true"></g>
+          <path id="land" class="land" d="" aria-hidden="true"></path>
+          <g id="markers"></g>
+        </svg>
+        <p id="loading" class="map-loading is-hidden">Listening for earthquakes…</p>
+      </div>
+      <div class="legend">
+        <p class="legend-text">Circle size = magnitude · Colour = depth · Rings = the 12 newest</p>
+        <div class="legend-depth">
+          <span>0 km, shallow</span>
+          <span class="legend-bar" aria-hidden="true"></span>
+          <span>660 km, deep</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="side">
+
+      <section class="panel controls" aria-labelledby="controlsTitle">
+        <h2 id="controlsTitle">Controls</h2>
+
+        <div class="control">
+          <p id="windowLabel" class="control-label">Time window</p>
+          <div class="segmented" role="group" aria-labelledby="windowLabel">
+            <button class="button window-button" type="button" data-window="hour" aria-pressed="false">Past hour</button>
+            <button class="button window-button" type="button" data-window="day" aria-pressed="true">Past day</button>
+            <button class="button window-button" type="button" data-window="week" aria-pressed="false">Past week (M2.5+ only)</button>
+          </div>
+        </div>
+
+        <div class="control">
+          <p class="control-label">
+            <label for="magSlider">Minimum magnitude:</label>
+            <output id="magOutput" class="readout" for="magSlider">All magnitudes</output>
+          </p>
+          <input id="magSlider" class="slider" type="range" min="0" max="7" step="0.5" value="0">
+        </div>
+
+        <div class="button-row">
+          <button id="refreshBtn" class="button" type="button">Refresh now</button>
+          <button id="soundBtn" class="button" type="button" aria-pressed="false">Sound: off</button>
+        </div>
+
+        <p class="status readout"><span id="countText">No data yet</span> · <span id="updatedText">Not updated yet</span></p>
+      </section>
+
+      <section class="panel detail" aria-labelledby="detailTitle" aria-live="polite">
+        <h2 id="detailTitle">Selected earthquake</h2>
+        <p id="detailEmpty" class="muted">Select an earthquake on the map or in the list to see where, how strong and how deep it was.</p>
+        <div id="detailBody" class="is-hidden">
+          <p id="detailPlace" class="detail-place"></p>
+          <dl class="detail-grid">
+            <div><dt>Magnitude</dt><dd id="detailMag" class="readout"></dd></div>
+            <div><dt>Depth</dt><dd id="detailDepth" class="readout"></dd></div>
+            <div><dt>Your local time</dt><dd id="detailTime" class="readout"></dd></div>
+            <div><dt>How long ago</dt><dd id="detailAgo" class="readout"></dd></div>
+          </dl>
+          <a id="detailLink" class="detail-link" href="https://earthquake.usgs.gov/earthquakes/map/" target="_blank" rel="noopener">Open the USGS event page</a>
+        </div>
+      </section>
+
+      <section class="panel list-panel" aria-labelledby="listTitle">
+        <h2 id="listTitle">Most recent earthquakes</h2>
+        <p id="listNote" class="muted readout"></p>
+        <ol id="quakeList" class="quake-list"></ol>
+        <div id="listSkeleton" class="skeleton is-hidden" aria-hidden="true">
+          <span class="skeleton-row"></span>
+          <span class="skeleton-row"></span>
+          <span class="skeleton-row"></span>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <p>Data: U.S. Geological Survey (n.d.), refreshed every 60 seconds · Photo: Spiske (2019) ·
+    Sound: SamsterBirdies (2020) and unfa (2014) · Map outline: Natural Earth (n.d.)</p>
+  <p>Tremor · Zekai Wan · CCT360 · <a href="references.html">References</a></p>
+</footer>
+
+</body>
+</html>
